@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f8fb" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self'; font-src 'self' data:; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Research Talk Trainer" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="app.css" />
+  <title>Research Talk Trainer Mobile</title>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">RT</div>
+        <div>
+          <div class="brand-title">Research Talk Trainer</div>
+          <div class="brand-sub">v0.13.1 Mobile Secure</div>
+        </div>
+      </div>
+      <button id="installBtn" class="ghost small hidden" type="button">インストール</button>
+    </header>
+
+    <main class="page">
+      <section class="hero compact">
+        <h1>研究内容から英語を組み立てる</h1>
+        <p>意味 → 英語の型 → 英語チャンク → 発話。スマホでは縦型Chunk Mapで練習します。</p>
+      </section>
+
+      <section class="panel controls-panel">
+        <div class="control-grid">
+          <label class="field wide">
+            <span>教材</span>
+            <select id="materialSelect"></select>
+          </label>
+          <label class="field">
+            <span>Section</span>
+            <select id="sectionSelect"><option value="All">All</option></select>
+          </label>
+          <label class="field">
+            <span>Type</span>
+            <select id="typeSelect">
+              <option value="All">All</option>
+              <option value="text">Text</option>
+              <option value="figure">Figure</option>
+              <option value="table">Table</option>
+              <option value="equation">Equation</option>
+            </select>
+          </label>
+        </div>
+        <div class="control-row">
+          <label class="toggle"><input id="includeMastered" type="checkbox" /> 覚えた文も含める</label>
+          <label class="toggle"><input id="randomOrder" type="checkbox" /> ランダム順</label>
+        </div>
+        <div class="import-row">
+          <button id="importZipBtn" class="secondary" type="button">＋ 教材ZIPを追加</button>
+          <input id="zipInput" type="file" accept=".zip,application/zip" multiple hidden />
+          <button id="manageBtn" class="ghost" type="button">教材管理</button>
+        </div>
+        <div id="importStatus" class="status" aria-live="polite"></div>
+      </section>
+
+      <section id="emptyState" class="panel empty hidden">
+        <h2>教材がありません</h2>
+        <p>ChatGPTでBuildした教材ZIPを「＋ 教材ZIPを追加」から読み込んでください。</p>
+      </section>
+
+      <section id="trainer" class="trainer hidden">
+        <div class="meta-row">
+          <div>
+            <div id="materialTitle" class="paper-title"></div>
+            <div id="itemMeta" class="item-meta"></div>
+          </div>
+          <div id="counter" class="counter"></div>
+        </div>
+
+        <div id="visualCard" class="visual-card hidden">
+          <button id="imageExpandBtn" class="image-button" type="button" aria-label="画像を拡大">
+            <img id="itemImage" alt="教材画像" />
+          </button>
+        </div>
+
+        <article class="ja-card">
+          <div class="eyebrow">日本語で考える</div>
+          <div id="jaSentence" class="ja-sentence"></div>
+        </article>
+
+        <div class="mode-tabs" role="tablist" aria-label="練習モード">
+          <button class="mode-tab active" data-mode="chunk" type="button">Chunk Map</button>
+          <button class="mode-tab" data-mode="recall" type="button">部分リコール</button>
+          <button class="mode-tab" data-mode="mixed" type="button">混合文</button>
+        </div>
+
+        <section id="chunkMode" class="mode-section">
+          <div class="section-caption">① 日本語の意味チャンク</div>
+          <div id="jaChunks" class="chunk-list ja-list"></div>
+          <div class="bridge">同じ A / B / C… が同じ意味の部品</div>
+          <div class="section-caption">② 英語ではこの順番 — タップで発音</div>
+          <div id="enChunks" class="chunk-list en-list"></div>
+          <button id="speakFullBtn" class="speak-full" type="button">🔊 English 全文</button>
+        </section>
+
+        <section id="recallMode" class="mode-section hidden">
+          <div class="section-caption">日本語になっている1チャンクを英語で言ってみる</div>
+          <div id="recallChunks" class="recall-list"></div>
+          <div class="recall-actions">
+            <button id="revealRecallBtn" class="secondary" type="button">このチャンクの英語を確認</button>
+            <button id="newRecallBtn" class="ghost" type="button">別のチャンク</button>
+          </div>
+        </section>
+
+        <section id="mixedMode" class="mode-section hidden">
+          <div class="section-caption">日本語を足場にしながら英語部分を増やす</div>
+          <div id="variantButtons" class="variant-buttons"></div>
+          <div id="mixedText" class="mixed-text"></div>
+          <button id="speakMixedBtn" class="speak-full" type="button">🔊 完全文を聞く</button>
+        </section>
+
+        <details class="details-card">
+          <summary>解説・英語の型</summary>
+          <div class="details-body">
+            <div class="detail-label">English pattern</div>
+            <div id="englishPattern" class="pattern"></div>
+            <div class="detail-label">日本語</div>
+            <div id="patternJa"></div>
+            <div class="detail-label">組み立て方</div>
+            <div id="patternNote"></div>
+          </div>
+        </details>
+
+        <details class="details-card">
+          <summary>発話英文・論文原文</summary>
+          <div class="details-body">
+            <div class="detail-label">Spoken English</div>
+            <div id="spokenText" class="spoken"></div>
+            <div class="detail-label">Paper text</div>
+            <div id="paperText" class="paper-text"></div>
+          </div>
+        </details>
+
+        <div class="bottom-spacer"></div>
+      </section>
+    </main>
+
+    <nav id="navBar" class="nav-bar hidden" aria-label="教材移動">
+      <button id="prevBtn" class="nav-secondary" type="button">← 前へ</button>
+      <button id="nextBtn" class="nav-primary" type="button">次へ →</button>
+      <button id="masterBtn" class="nav-secondary" type="button">✓ 覚えた</button>
+    </nav>
+
+    <div id="imageModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="画像拡大表示">
+      <button id="imageCloseBtn" class="modal-close" type="button">×</button>
+      <img id="modalImage" alt="教材画像の拡大" />
+    </div>
+
+    <div id="manageModal" class="sheet hidden" role="dialog" aria-modal="true" aria-label="教材管理">
+      <div class="sheet-card">
+        <div class="sheet-head">
+          <h2>教材管理</h2>
+          <button id="manageCloseBtn" class="ghost small" type="button">閉じる</button>
+        </div>
+        <div id="managedMaterials"></div>
+        <hr />
+        <h3>スマホへインストール</h3>
+        <p class="muted">Android/Chromeでは「インストール」ボタンが表示される場合があります。iPhoneではSafariの共有ボタン →「ホーム画面に追加」を選びます。</p>
+        <p class="muted">PWAとしてのインストールにはHTTPSで公開されたURLが必要です。</p>
+        <hr />
+        <h3>セキュリティ</h3>
+        <p class="muted">追加した教材と進捗はこの端末内に保存されます。教材ZIPは最大50MB、画像はPNG/JPEG/WebPのみ受け付けます。外部CDNは使用しません。</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/jszip.min.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "Research Talk Trainer Mobile Secure",
+  "short_name": "Talk Trainer",
+  "description": "国際会議の英語口頭発表を、意味・英語の型・チャンクから練習するモバイルTrainer",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#f7f8fb",
+  "lang": "ja",
+  "orientation": "portrait-primary",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
