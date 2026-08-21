@@ -22,7 +22,7 @@
         <div class="brand-mark">RT</div>
         <div>
           <div class="brand-title">Research Talk Trainer</div>
-          <div class="brand-sub">v0.13.1 Mobile Secure</div>
+          <div class="brand-sub">v0.13.2 Mobile Secure</div>
         </div>
       </div>
       <button id="installBtn" class="ghost small hidden" type="button">インストール</button>
@@ -31,7 +31,7 @@
     <main class="page">
       <section class="hero compact">
         <h1>研究内容から英語を組み立てる</h1>
-        <p>意味 → 英語の型 → 英語チャンク → 発話。スマホでは縦型Chunk Mapで練習します。</p>
+        <p>意味 → 英語の型 → 英語チャンク → 発話。スマホでは日英チャンクを線で結ぶChunk Mapで練習します。</p>
       </section>
 
       <section class="panel controls-panel">
@@ -99,11 +99,18 @@
         </div>
 
         <section id="chunkMode" class="mode-section">
-          <div class="section-caption">① 日本語の意味チャンク</div>
-          <div id="jaChunks" class="chunk-list ja-list"></div>
-          <div class="bridge">同じ A / B / C… が同じ意味の部品</div>
-          <div class="section-caption">② 英語ではこの順番 — タップで発音</div>
-          <div id="enChunks" class="chunk-list en-list"></div>
+          <div id="chunkMap" class="chunk-map-pair">
+            <div class="chunk-column">
+              <div class="section-caption map-caption">① 日本語</div>
+              <div id="jaChunks" class="chunk-list ja-list"></div>
+            </div>
+            <div class="chunk-column">
+              <div class="section-caption map-caption">② English — タップで発音</div>
+              <div id="enChunks" class="chunk-list en-list"></div>
+            </div>
+            <svg id="chunkLinks" class="chunk-links" aria-hidden="true"><g id="chunkLinksGroup"></g></svg>
+          </div>
+          <div class="bridge">A / B / C… が同じ意味のペアです。線の交差が、日本語順と英語順の違いを表します。チャンクをタップすると対応ペアを強調します。</div>
           <button id="speakFullBtn" class="speak-full" type="button">🔊 English 全文</button>
         </section>
 

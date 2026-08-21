@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '0.13.1-secure';
+const APP_VERSION = '0.13.2-secure';
 const DB_NAME = 'research-talk-trainer-mobile';
 const DB_VERSION = 1;
 const STORE_MATERIALS = 'materials';
@@ -453,31 +453,125 @@ async function renderCurrentItem() {
   syncMasterButton(item);
 }
 
+let chunkMapResizeObserver = null;
+let activeChunkPairId = null;
+
+function setActiveChunkPair(id) {
+  activeChunkPairId = id || null;
+  document.querySelectorAll('#chunkMap .chunk-card').forEach(card => {
+    card.classList.toggle('pair-active', !!id && card.dataset.chunkId === id);
+  });
+  document.querySelectorAll('#chunkLinksGroup [data-link-id]').forEach(el => {
+    el.classList.toggle('active', !!id && el.dataset.linkId === id);
+  });
+}
+
+function drawChunkLinks() {
+  const map = $('chunkMap');
+  const svg = $('chunkLinks');
+  const group = $('chunkLinksGroup');
+  if (!map || !svg || !group || map.offsetParent === null) return;
+
+  const mapRect = map.getBoundingClientRect();
+  if (!mapRect.width || !mapRect.height) return;
+
+  svg.setAttribute('viewBox', `0 0 ${mapRect.width} ${mapRect.height}`);
+  svg.setAttribute('width', String(mapRect.width));
+  svg.setAttribute('height', String(mapRect.height));
+  group.replaceChildren();
+
+  const jaCards = [...$('jaChunks').querySelectorAll('.chunk-card[data-chunk-id]')];
+  const enById = new Map(
+    [...$('enChunks').querySelectorAll('.chunk-card[data-chunk-id]')]
+      .map(card => [card.dataset.chunkId, card])
+  );
+
+  for (const jaCard of jaCards) {
+    const id = jaCard.dataset.chunkId;
+    const enCard = enById.get(id);
+    if (!id || !enCard) continue;
+
+    const jaRect = jaCard.getBoundingClientRect();
+    const enRect = enCard.getBoundingClientRect();
+    const x1 = jaRect.right - mapRect.left;
+    const y1 = jaRect.top + jaRect.height / 2 - mapRect.top;
+    const x2 = enRect.left - mapRect.left;
+    const y2 = enRect.top + enRect.height / 2 - mapRect.top;
+    const dx = Math.max(18, x2 - x1);
+    const c1 = x1 + dx * 0.42;
+    const c2 = x2 - dx * 0.42;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M ${x1} ${y1} C ${c1} ${y1}, ${c2} ${y2}, ${x2} ${y2}`);
+    path.setAttribute('class', 'chunk-link');
+    path.dataset.linkId = id;
+    if (activeChunkPairId === id) path.classList.add('active');
+    group.appendChild(path);
+
+    for (const [cx, cy] of [[x1, y1], [x2, y2]]) {
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', String(cx));
+      dot.setAttribute('cy', String(cy));
+      dot.setAttribute('r', activeChunkPairId === id ? '3.4' : '2.6');
+      dot.setAttribute('class', 'chunk-link-dot');
+      dot.dataset.linkId = id;
+      if (activeChunkPairId === id) dot.classList.add('active');
+      group.appendChild(dot);
+    }
+  }
+}
+
+function scheduleChunkLinks() {
+  requestAnimationFrame(() => requestAnimationFrame(drawChunkLinks));
+}
+
+function watchChunkMapSize() {
+  if (chunkMapResizeObserver) chunkMapResizeObserver.disconnect();
+  if (!('ResizeObserver' in window)) return;
+  chunkMapResizeObserver = new ResizeObserver(scheduleChunkLinks);
+  chunkMapResizeObserver.observe($('chunkMap'));
+}
+
 function renderChunkMode(item) {
   const ja = sortedChunks(item, 'ja_order');
   const en = sortedChunks(item, 'en_order');
+  activeChunkPairId = null;
+
   $('jaChunks').innerHTML = ja.map(c => `
-    <div class="chunk-card ja">
+    <div class="chunk-card ja" data-chunk-id="${escapeHtml(c.id)}" role="button" aria-label="${escapeHtml(c.id)} の英語ペアを強調">
       <div class="chunk-id">${escapeHtml(c.id)}</div>
       <div class="chunk-text"><span class="chunk-order">JA ${escapeHtml(c.ja_order)}</span>${escapeHtml(c.ja)}</div>
     </div>`).join('');
   $('enChunks').innerHTML = en.map((c, idx) => `
-    <div class="chunk-card en" data-en-index="${idx}">
+    <div class="chunk-card en" data-en-index="${idx}" data-chunk-id="${escapeHtml(c.id)}" role="button" aria-label="${escapeHtml(c.id)} の英語チャンクを発音">
       <div class="chunk-id">${escapeHtml(c.id)}</div>
       <div class="chunk-text"><span class="chunk-order">EN ${escapeHtml(c.en_order)}</span>${escapeHtml(c.en)}</div>
-      <button class="speak-one" data-speak="${encodeURIComponent(c.en)}" type="button" aria-label="このチャンクを発音">🔊</button>
+      <button class="speak-one" data-speak="${encodeURIComponent(c.en)}" data-chunk-id="${escapeHtml(c.id)}" type="button" aria-label="このチャンクを発音">🔊</button>
     </div>`).join('');
+
+  $('jaChunks').querySelectorAll('.chunk-card.ja').forEach(card => {
+    card.addEventListener('click', () => {
+      setActiveChunkPair(activeChunkPairId === card.dataset.chunkId ? null : card.dataset.chunkId);
+    });
+  });
 
   $('enChunks').querySelectorAll('.speak-one').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      setActiveChunkPair(btn.dataset.chunkId || null);
       speak(decodeURIComponent(btn.dataset.speak || ''));
     });
   });
   $('enChunks').querySelectorAll('.chunk-card.en').forEach((card, idx) => {
-    card.addEventListener('click', () => speak(en[idx]?.en || ''));
+    card.addEventListener('click', () => {
+      setActiveChunkPair(card.dataset.chunkId || null);
+      speak(en[idx]?.en || '');
+    });
   });
+
   $('speakFullBtn').onclick = () => speak(item.spoken_text || '', 0.92);
+  watchChunkMapSize();
+  scheduleChunkLinks();
 }
 
 function renderRecallMode(item, chooseNew = false) {
@@ -532,6 +626,7 @@ function syncModeTabs() {
   $('chunkMode').classList.toggle('hidden', state.mode !== 'chunk');
   $('recallMode').classList.toggle('hidden', state.mode !== 'recall');
   $('mixedMode').classList.toggle('hidden', state.mode !== 'mixed');
+  if (state.mode === 'chunk') scheduleChunkLinks();
 }
 
 function syncMasterButton(item) {
@@ -676,6 +771,8 @@ function renderManagedMaterials() {
 }
 
 function registerEvents() {
+  window.addEventListener('resize', scheduleChunkLinks);
+  window.addEventListener('orientationchange', scheduleChunkLinks);
   $('materialSelect').addEventListener('change', loadSelectedMaterial);
   $('sectionSelect').addEventListener('change', () => { state.itemIndex = 0; applyFilters(); });
   $('typeSelect').addEventListener('change', () => { state.itemIndex = 0; applyFilters(); });

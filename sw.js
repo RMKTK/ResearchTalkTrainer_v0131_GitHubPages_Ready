@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE = 'rtt-mobile-v0131-secure-1';
+const CACHE = 'rtt-mobile-v0132-secure-1';
 const PRECACHE = [
   './app.css',
   './app.js',
